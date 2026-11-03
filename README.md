@@ -8,7 +8,7 @@ A third-person run-and-gun for the HeatSync Labs game station (wasmcart, Batocer
 
 ## Play
 
-Download `dropshot.html` from the latest release (or build it, below) and open it. It is one file with the game inside: double-click it, no server needed. Click the game to aim with the mouse. Radio calls and dialogue are spoken aloud.
+Play it in the browser at **https://virgilvox.github.io/dropshot/**, or download `dropshot.html` from the latest release (or build it, below) and open it. It is one file with the game inside: double-click it, no server needed. Click the game to aim with the mouse. Radio calls and dialogue are spoken aloud.
 
 | | Pad | Keyboard | Mouse |
 |---|---|---|---|
@@ -30,6 +30,7 @@ On the station, copy `build/dropshot.wasc` to `/userdata/roms/wasmcart/` (back u
 ```sh
 ./build.sh                 # build/dropshot.wasc and web/dropshot.html
 REGEN_STATES=1 ./build.sh  # after adding states to build/missing.txt
+tools/publish-pages.sh     # put the built web/dropshot.html on GitHub Pages (the gh-pages branch)
 ```
 
 Needs emsdk and Node 22. Clone with `--recursive` (or the first build fetches them): three.c and wasmcart are git submodules, and `patches/three.c.patch` is applied to three.c on the first build. Regenerating the shader table needs three.c's own packages: `(cd third_party/three.c && npm install --ignore-scripts)`.
