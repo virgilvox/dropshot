@@ -1,0 +1,7 @@
+build/
+build-*/
+node_modules/
+web/dropshot.html
+.DS_Store
+*.log
+compile_flags.txt

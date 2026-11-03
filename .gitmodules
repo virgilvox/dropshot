@@ -1,0 +1,8 @@
+[submodule "third_party/three.c"]
+	path = third_party/three.c
+	url = https://github.com/monteslu/three.c
+	ignore = dirty
+[submodule "third_party/wasmcart"]
+	path = third_party/wasmcart
+	url = https://github.com/wasmcart/wasmcart
+	ignore = dirty

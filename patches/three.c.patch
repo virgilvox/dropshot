@@ -1,0 +1,55 @@
+--- a/src/renderer.c
++++ b/src/renderer.c
+@@ -100,7 +100,9 @@
+   bool borrowed;      /* t3_texture_from_gl with owns_gl false: the embedder deletes it */
+ } texture_gl;
+ 
+-#define T3_MAX_LIGHTS 8 /* per type; more are ignored */
++#ifndef T3_MAX_LIGHTS
++#define T3_MAX_LIGHTS 16 /* per type; more are ignored (COFFEE & KILL: 16, the arena has 11 point lights) */
++#endif
+ typedef struct {
+   t3_color ambient;
+   int num_dir, num_point, num_spot, num_hemi, num_dir_shadows, num_spot_shadows, num_point_shadows;
+--- a/src/renderer_gen.inc
++++ b/src/renderer_gen.inc
+@@ -30,7 +30,7 @@
+   for (int b = 0; b < (int)(sizeof feats / sizeof feats[0]) && n < (int)cap - 16; b++)
+     if (f & (1ull << b)) n += snprintf(name + n, cap - (size_t)n, "+%s", feats[b]);
+   if (kind != T3_GEN_BASIC && kind != T3_GEN_NORMAL && kind <= T3_GEN_PHYSICAL)
+-    n += snprintf(name + n, cap - (size_t)n, "+l%d%d%d%d", want[0], want[1], want[2], want[3]);
++    n += snprintf(name + n, cap - (size_t)n, "+l%x%x%x%x", want[0], want[1], want[2], want[3]);
+   if (cast && (cast[0] != want[0] || cast[1] != want[1] || cast[2] != want[2]))
+     snprintf(name + n, cap - (size_t)n, "+s%d%d%d", cast[0], cast[1], cast[2]);
+ }
+--- a/tools/capture-core.mjs
++++ b/tools/capture-core.mjs
+@@ -186,7 +186,7 @@
+ function parseState(stateName) {
+   const [kind, ...tokens] = stateName.split('+');
+   if (!(kind in KINDS)) throw new Error(`${stateName}: unknown material kind ${kind}`);
+-  const lightsTok = tokens.find((t) => /^l\d{4}$/.test(t));
++  const lightsTok = tokens.find((t) => /^l[0-9a-f]{4}$/.test(t));   // a hex digit per type (up to 15 lights)
+   const extTok = tokens.find((t) => /^x[a-z0-9_]+$/.test(t));
+   // sDPS: how many of each type's lights cast (the first ones in creation order:
+   // r186 orders a program's lights by object id); absent = all of them
+@@ -197,7 +197,7 @@
+   if (!zTok && (kind === 'pmremggx' || kind === 'pmremblur')) throw new Error(`${stateName}: needs z<lodMax>`);
+   const features = tokens.filter((t) => t !== lightsTok && t !== extTok && t !== castTok && t !== zTok);
+   for (const f of features) if (!(f in FEATURES)) throw new Error(`${stateName}: unknown feature ${f}`);
+-  const lights = lightsTok ? lightsTok.slice(1).split('').map(Number) : LIT.has(kind) ? [1, 1, 0, 0] : kind === 'depth' ? [1, 0, 0, 0] : [0, 0, 0, 0];
++  const lights = lightsTok ? lightsTok.slice(1).split('').map((c) => parseInt(c, 16)) : LIT.has(kind) ? [1, 1, 0, 0] : kind === 'depth' ? [1, 0, 0, 0] : [0, 0, 0, 0];
+   if (kind === 'depth' && lightsTok) throw new Error(`${stateName}: the depth kind takes no light vector`);
+   const cast = castTok ? castTok.slice(1).split('').map(Number) : null;
+   if (cast && !features.includes('shadow')) throw new Error(`${stateName}: sDPS needs +shadow`);
+--- a/tools/gen-project-table.mjs
++++ b/tools/gen-project-table.mjs
+@@ -61,7 +61,7 @@
+   let lights = null, cast = null;
+   const rest = [];
+   for (const t of toks) {
+-    if (/^l\d{4}$/.test(t)) lights = [...t.slice(1)].map(Number);
++    if (/^l[0-9a-f]{4}$/.test(t)) lights = [...t.slice(1)].map((c) => parseInt(c, 16));
+     else if (/^s\d{3}$/.test(t)) cast = [...t.slice(1)].map(Number);
+     else rest.push(t);
+   }

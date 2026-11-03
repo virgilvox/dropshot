@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101218">
+<link rel="icon" href="data:,">
+<title>DROPSHOT</title>
+<style>
+/* Archivo Black, SIL Open Font License 1.1, see assets/fonts/OFL.txt in the source tree.
+   Copyright 2017 The Archivo Black Project Authors (https://github.com/Omnibus-Type/ArchivoBlack) */
+@font-face { font-family: "Archivo Black"; src: url(data:font/ttf;base64,__FONT_B64__) format("truetype"); font-weight: 400 900; font-display: swap; }
+:root { --ink: #101218; --ink2: #1a1d27; --line: #2b3040; --text: #e8eaf0; --dim: #8b92a6; --orange: #ff7a1a; --teal: #2ec4b6; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--ink); color: var(--text); overflow: hidden; overscroll-behavior: none; }
+body { font: 14px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; user-select: none; -webkit-user-select: none; }
+.display { font-family: "Archivo Black", Impact, "Arial Black", sans-serif; letter-spacing: .04em; }
+#stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+/* 16:9 box that fits the window, letterboxed by the ink background */
+#frame { position: relative; width: min(100vw, 177.7778vh); height: min(56.25vw, 100vh); background: #000; }
+canvas#screen { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+#bar { position: fixed; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 20; opacity: .0; transition: opacity .25s; }
+body.hot #bar, #bar:hover, #bar:focus-within { opacity: 1; }
+body.loading #bar { opacity: 1; }
+.btn { font: 700 12px/1 ui-monospace, Menlo, monospace; letter-spacing: .08em; color: var(--text); background: rgba(16,18,24,.82); border: 1px solid var(--line);
+  padding: 8px 11px; cursor: pointer; border-radius: 2px; }
+.btn:hover { border-color: var(--teal); color: var(--teal); }
+.btn.on { border-color: var(--orange); color: var(--orange); }
+#panel { position: fixed; top: 48px; right: 10px; width: 250px; background: rgba(16,18,24,.94); border: 1px solid var(--line); border-top: 3px solid var(--teal);
+  padding: 12px 14px; z-index: 20; display: none; }
+#panel.open { display: block; }
+#panel h3 { margin: 0 0 10px; font-size: 13px; color: var(--teal); }
+#panel label { display: flex; justify-content: space-between; color: var(--dim); font-size: 12px; margin-top: 6px; }
+#panel input[type=range] { width: 100%; accent-color: var(--orange); margin: 6px 0 2px; }
+#panel p { margin: 10px 0 0; color: var(--dim); font-size: 11px; line-height: 1.5; }
+#hint { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 15; color: var(--text); background: rgba(16,18,24,.85);
+  border: 1px solid var(--orange); padding: 7px 14px; font-size: 12px; letter-spacing: .06em; pointer-events: none; display: none; }
+#hint.show { display: block; }
+/* loading / start screen */
+#gate { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: radial-gradient(ellipse at 50% 30%, #1b2030 0%, var(--ink) 65%); overflow: auto; }
+#gate.gone { display: none; }
+.card { width: min(760px, 100%); }
+.mark { display: flex; align-items: center; gap: 14px; }
+.mark i { width: 14px; height: 54px; background: var(--orange); transform: skewX(-14deg); box-shadow: 18px 0 0 -4px var(--teal); }
+h1 { margin: 0; font-size: clamp(40px, 9vw, 84px); line-height: .95; color: var(--text); }
+h1 em { font-style: normal; color: var(--orange); }
+.sub { color: var(--dim); margin: 6px 0 22px; letter-spacing: .12em; font-size: 12px; }
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.legend section { background: var(--ink2); border: 1px solid var(--line); border-top: 2px solid var(--teal); padding: 10px 12px; }
+.legend section:nth-child(2) { border-top-color: var(--orange); }
+.legend h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: .14em; color: var(--text); }
+.legend ul { list-style: none; margin: 0; padding: 0; font-size: 12px; color: var(--dim); }
+.legend li { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+.legend li b { color: var(--text); font-weight: 600; white-space: nowrap; }
+#go { font: inherit; font-weight: 800; letter-spacing: .12em; font-size: 15px; color: var(--ink); background: var(--orange); border: 0; padding: 13px 28px; cursor: pointer;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+#go:hover:not(:disabled) { background: #ff9547; }
+#go:disabled { background: var(--line); color: var(--dim); cursor: default; }
+#status { display: inline-block; margin-left: 16px; color: var(--dim); font-size: 12px; }
+#err { margin-top: 16px; color: #ff6b5e; border-left: 3px solid #ff6b5e; padding: 6px 10px; display: none; font-size: 13px; line-height: 1.5; }
+#err.show { display: block; }
+.foot { margin-top: 20px; color: var(--dim); font-size: 11px; }
+.foot a, .foot button { color: var(--teal); background: none; border: 0; font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
+#over { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; background: rgba(16,18,24,.88);
+  border: 3px dashed var(--teal); font-size: 20px; letter-spacing: .1em; color: var(--teal); }
+#over.show { display: flex; }
+</style>
+</head>
+<body class="loading">
+<div id="stage"><div id="frame"><canvas id="screen" width="1280" height="720" tabindex="0"></canvas></div></div>
+
+<div id="bar">
+  <button class="btn" id="btnSound" title="Mute or unmute">SOUND</button>
+  <button class="btn" id="btnSet" title="Settings">SETTINGS</button>
+  <button class="btn" id="btnFull" title="Full screen (F11 also works)">FULLSCREEN</button>
+</div>
+<div id="panel">
+  <h3 class="display">SETTINGS</h3>
+  <label><span>Mouse look speed</span><span id="sensVal">1.0</span></label>
+  <input type="range" id="sens" min="0.2" max="3" step="0.1" value="1">
+  <label><span>Mouse smoothing</span><span id="smoothVal">0.5</span></label>
+  <input type="range" id="smooth" min="0" max="0.9" step="0.05" value="0.5">
+  <p>Click the game to capture the mouse. Esc releases it and pauses.</p>
+</div>
+<div id="hint">Click the game to capture the mouse</div>
+
+<div id="gate">
+  <div class="card">
+    <div class="mark"><i></i><h1 class="display">DROP<em>SHOT</em></h1></div>
+    <div class="sub">ONE SHOT. NO SECOND CHANCES. WEBGL2, NO INSTALL.</div>
+    <div class="legend">
+      <section><h2 class="display">KEYBOARD AND MOUSE</h2><ul>
+        <li><span>Move</span><b>W A S D</b></li>
+        <li><span>Aim</span><b>Mouse (click to capture)</b></li>
+        <li><span>Fire</span><b>Left click / J</b></li>
+        <li><span>Scope</span><b>Right click / K</b></li>
+        <li><span>Zoom</span><b>Wheel / R and V</b></li>
+        <li><span>Jump</span><b>Space</b></li>
+        <li><span>Roll</span><b>Shift</b></li>
+        <li><span>Decoy / Swap</span><b>E / Tab</b></li>
+        <li><span>Pause</span><b>Esc / P / Enter</b></li>
+      </ul></section>
+      <section><h2 class="display">GAMEPAD</h2><ul>
+        <li><span>Move</span><b>Left stick</b></li>
+        <li><span>Aim</span><b>Right stick</b></li>
+        <li><span>Fire</span><b>Right trigger</b></li>
+        <li><span>Scope</span><b>Left trigger</b></li>
+        <li><span>Jump</span><b>A</b></li>
+        <li><span>Roll</span><b>B</b></li>
+        <li><span>Decoy / Swap</span><b>X / Y</b></li>
+        <li><span>Pause</span><b>Start</b></li>
+      </ul></section>
+    </div>
+    <button id="go" disabled>LOADING</button><span id="status">starting</span>
+    <div id="err"></div>
+    <div class="foot">Progress is saved in this browser. Drop a .wasc file anywhere on this page, or <button id="pick">open one</button>, to play a different cart.
+      <input type="file" id="file" accept=".wasc,application/zip" hidden></div>
+  </div>
+</div>
+<div id="over" class="display">DROP A .WASC CART TO PLAY IT</div>
+
+<!-- the cart, base64 of the .wasc zip -->
+<script type="application/octet-stream" id="cart-data">__CART_B64__</script>
+<script>/*HOST_BUNDLE*/</script>
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const canvas = $('screen');
+const setStatus = (s) => { $('status').textContent = s; };
+function showError(msg) { const e = $('err'); e.textContent = msg; e.classList.add('show'); }
+
+/* ---------- small safe storage helpers ---------- */
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
+// IndexedDB with a promise per call; every failure resolves quietly so a blocked store never stops the game
+const idb = new Promise((res) => {
+  try { const r = indexedDB.open('dropshot-web', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => res(null); r.onblocked = () => res(null); }
+  catch { res(null); }
+});
+async function kvGet(k) { const db = await idb; if (!db) return null; return new Promise((res) => { try { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); } catch { res(null); } }); }
+async function kvSet(k, v) { const db = await idb; if (!db) return; return new Promise((res) => { try { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = res; t.onabort = res; } catch { res(); } }); }
+
+/* ---------- WebGL2 ---------- */
+function makeGL() {
+  try { return canvas.getContext('webgl2', { antialias: false, alpha: false, depth: false, stencil: false, premultipliedAlpha: false, powerPreference: 'high-performance' }); }
+  catch { return null; }
+}
+
+/* The cart upscales its 16:9 frame to the size the host prefers, so give it the
+   canvas backing size: the window at device resolution, kept between 720p and 1440p. */
+function backingSize() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.min(window.innerWidth, window.innerHeight * 16 / 9) * dpr;
+  const W = Math.max(1280, Math.min(2560, Math.round(Math.max(w, (screen.width || 1280)) / 16) * 16));
+  return [W, Math.round(W * 9 / 16)];
+}
+
+/* ---------- audio (same worklet-from-Blob approach as the other players) ---------- */
+let actx = null, anode = null, gain = null, muted = lsGet('ds.muted', '0') === '1', sndProc = null;
+const workletSrc = `class DSOut extends AudioWorkletProcessor{constructor(){super();this.cap=sampleRate*2|0;this.b=new Float32Array(this.cap*2);this.r=0;this.w=0;this.n=0;this.port.onmessage=e=>{const d=e.data;for(let i=0;i<d.length;i+=2){if(this.n>=this.cap){this.r=(this.r+1)%this.cap;this.n--;}this.b[this.w*2]=d[i];this.b[this.w*2+1]=d[i+1];this.w=(this.w+1)%this.cap;this.n++;}const lim=(sampleRate*0.12)|0;while(this.n>lim){this.r=(this.r+1)%this.cap;this.n--;}};}process(_,o){const L=o[0][0],R=o[0][1]||o[0][0];for(let i=0;i<L.length;i++){if(this.n>0){L[i]=this.b[this.r*2];R[i]=this.b[this.r*2+1];this.r=(this.r+1)%this.cap;this.n--;}else{L[i]=0;R[i]=0;}}return true;}}registerProcessor('ds-out',DSOut);`;
+/* The worklet is the low-latency path, but a page opened from file:// has a
+ * null origin and some browsers refuse a Blob module there. Any failure falls
+ * back to a ScriptProcessor instead of losing the sound altogether. */
+async function initAudio() {
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    gain = actx.createGain(); gain.gain.value = muted ? 0 : 1; gain.connect(actx.destination);
+  } catch (e) { console.warn('no audio:', e); actx = null; return; }
+  if (actx.audioWorklet) {
+    try {
+      const url = URL.createObjectURL(new Blob([workletSrc], { type: 'text/javascript' }));
+      await actx.audioWorklet.addModule(url);
+      anode = new AudioWorkletNode(actx, 'ds-out', { outputChannelCount: [2] }); anode.connect(gain);
+      return;
+    } catch (e) { console.warn('audio worklet unavailable, using ScriptProcessor:', e); anode = null; }
+  }
+  try {
+    /* about 150 ms of queued frames at most, so a stall cannot build up lag */
+    const q = []; let qi = 0, queued = 0; const cap = actx.sampleRate * 0.15 * 2;
+    sndProc = { push: (d) => { q.push(d); queued += d.length; while (queued > cap && q.length > 1) { queued -= q.shift().length; qi = 0; } } };
+    const sp = actx.createScriptProcessor(1024, 0, 2);
+    sp.onaudioprocess = (e) => { const L = e.outputBuffer.getChannelData(0), R = e.outputBuffer.getChannelData(1); let i = 0;
+      while (i < L.length) { if (!q.length) { L[i] = R[i] = 0; i++; continue; } const d = q[0]; L[i] = d[qi]; R[i] = d[qi + 1]; qi += 2; i++; if (qi >= d.length) { queued -= d.length; q.shift(); qi = 0; } } };
+    sp.connect(gain);
+  } catch (e) { console.warn('no audio output:', e); actx = null; }
+}
+// browsers keep audio suspended until a user gesture
+function unlockAudio() { if (actx && actx.state !== 'running') actx.resume().catch(() => {}); }
+['pointerdown', 'keydown', 'touchstart', 'click'].forEach((ev) => window.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
+/* for tests and bug reports: window.__dsAudio() describes the audio path */
+window.__dsAudio = () => ({ state: actx && actx.state, rate: actx && actx.sampleRate, worklet: !!anode, script: !!sndProc, muted, pushed: pushedFrames });
+let pushedFrames = 0;
+function pushAudio(a) {
+  if (a) pushedFrames++;
+  if (!a || !actx || actx.state !== 'running' || muted) return;
+  const copy = new Float32Array(a.length); copy.set(a);
+  if (anode) anode.port.postMessage(copy, [copy.buffer]); else if (sndProc) sndProc.push(copy);
+}
+function paintSound() { $('btnSound').textContent = muted ? 'MUTED' : 'SOUND'; $('btnSound').classList.toggle('on', muted); }
+$('btnSound').onclick = () => { muted = !muted; lsSet('ds.muted', muted ? '1' : '0'); if (gain) gain.gain.value = muted ? 0 : 1; paintSound(); unlockAudio(); };
+paintSound();
+
+/* ---------- keyboard (USB HID codes, as wasmcart expects) ---------- */
+let host = null;
+const HID = {};
+for (let i = 0; i < 26; i++) HID['Key' + String.fromCharCode(65 + i)] = 0x04 + i;
+for (let i = 1; i <= 9; i++) HID['Digit' + i] = 0x1D + i;
+Object.assign(HID, { Digit0: 0x27, Enter: 0x28, Escape: 0x29, Backspace: 0x2A, Tab: 0x2B, Space: 0x2C, Minus: 0x2D, Equal: 0x2E,
+  ArrowRight: 0x4F, ArrowLeft: 0x50, ArrowDown: 0x51, ArrowUp: 0x52,
+  ShiftLeft: 0xE1, ShiftRight: 0xE5, ControlLeft: 0xE0, ControlRight: 0xE4, AltLeft: 0xE2, AltRight: 0xE6,
+  NumpadEnter: 0x28, NumpadAdd: 0x2E, NumpadSubtract: 0x2D });
+const ESC = 0x29;
+const GAME_KEYS = new Set(['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Backspace']);
+const pressed = new Set();
+let escTapAt = 0;
+function tapEscape() {
+  // pointer lock swallows the Esc keydown in most browsers, so the lock release itself becomes the pause
+  if (!host || performance.now() - escTapAt < 250) return;
+  escTapAt = performance.now();
+  host.keyDown(ESC, 0); setTimeout(() => { if (host) host.keyUp(ESC, 0); }, 90);
+}
+window.addEventListener('keydown', (e) => {
+  const c = HID[e.code]; if (c === undefined) return;
+  if (e.code === 'F11') return;
+  if (e.metaKey || (e.ctrlKey && !GAME_KEYS.has(e.code) && e.code !== 'ControlLeft' && e.code !== 'ControlRight')) return;
+  e.preventDefault();
+  if (!host || e.repeat || !gateGone()) return;
+  if (e.code === 'Escape') { if (performance.now() - escTapAt < 250) return; escTapAt = performance.now(); }
+  pressed.add(c); host.keyDown(c, 0);
+}, true);
+window.addEventListener('keyup', (e) => {
+  const c = HID[e.code]; if (c === undefined || !host) return;
+  pressed.delete(c); host.keyUp(c, 0);
+}, true);
+function releaseAllKeys() { if (!host) return; for (const c of pressed) host.keyUp(c, 0); pressed.clear(); }
+window.addEventListener('blur', releaseAllKeys);
+
+/* ---------- mouse: pointer lock, look = right stick ---------- */
+let sens = +lsGet('ds.sens', '1'), smooth = +lsGet('ds.smooth', '0.5');
+if (!(sens >= 0.2 && sens <= 3)) sens = 1;
+if (!(smooth >= 0 && smooth <= 0.9)) smooth = 0.5;
+let locked = false, accX = 0, accY = 0, lookX = 0, lookY = 0, mouseBtn = 0, wheelR = 0, wheelL = 0;
+const lockSupported = !!canvas.requestPointerLock;
+function takeLock() {
+  if (!lockSupported || locked) return;
+  try { const p = canvas.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(() => { try { const q = canvas.requestPointerLock(); if (q && q.catch) q.catch(() => {}); } catch {} }); }
+  catch { try { canvas.requestPointerLock(); } catch {} }
+}
+document.addEventListener('pointerlockchange', () => {
+  const was = locked; locked = document.pointerLockElement === canvas;
+  if (!locked) { accX = accY = 0; mouseBtn = 0; if (was && gateGone()) tapEscape(); }
+  $('hint').classList.toggle('show', !locked && gateGone() && lockSupported);
+});
+document.addEventListener('pointerlockerror', () => {});
+function gateGone() { return $('gate').classList.contains('gone'); }
+canvas.addEventListener('mousedown', (e) => {
+  e.preventDefault(); canvas.focus();
+  if (!locked) { takeLock(); return; }       // the capturing click is not a shot
+  mouseBtn |= 1 << e.button;
+});
+window.addEventListener('mouseup', (e) => { mouseBtn &= ~(1 << e.button); });
+window.addEventListener('mousemove', (e) => { if (locked) { accX += e.movementX; accY += e.movementY; } });
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (!locked) return;
+  if (e.deltaY < 0) wheelR = 3; else if (e.deltaY > 0) wheelL = 3;   // a few frames so the cart sees the edge
+}, { passive: false });
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+window.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+$('hint').addEventListener('click', takeLock);
+
+// mouse counts per frame become a held stick deflection, eased so aiming is not jittery
+const LOOK_GAIN = 0.045;   // stick units per mouse count at sensitivity 1
+function mouseStick() {
+  const tx = Math.max(-1, Math.min(1, accX * LOOK_GAIN * sens)), ty = Math.max(-1, Math.min(1, accY * LOOK_GAIN * sens));
+  accX = accY = 0;
+  lookX = lookX * smooth + tx * (1 - smooth); lookY = lookY * smooth + ty * (1 - smooth);
+  if (Math.abs(lookX) < 0.004) lookX = 0; if (Math.abs(lookY) < 0.004) lookY = 0;
+}
+
+/* ---------- settings panel ---------- */
+$('sens').value = sens; $('sensVal').textContent = sens.toFixed(1);
+$('smooth').value = smooth; $('smoothVal').textContent = smooth.toFixed(2);
+$('sens').oninput = (e) => { sens = +e.target.value; $('sensVal').textContent = sens.toFixed(1); lsSet('ds.sens', sens); };
+$('smooth').oninput = (e) => { smooth = +e.target.value; $('smoothVal').textContent = smooth.toFixed(2); lsSet('ds.smooth', smooth); };
+$('btnSet').onclick = () => { $('panel').classList.toggle('open'); $('btnSet').classList.toggle('on'); };
+$('btnFull').onclick = async () => {
+  try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch {}
+};
+// the toolbar fades out while playing; moving the mouse near it (when not locked) brings it back
+let hotTimer = 0;
+window.addEventListener('mousemove', () => { if (locked) return; document.body.classList.add('hot'); clearTimeout(hotTimer); hotTimer = setTimeout(() => document.body.classList.remove('hot'), 2500); });
+
+/* ---------- gamepads (standard mapping), several merged into one ---------- */
+const BTN_MAP = [1, 2, 4, 8, 16, 32, 0, 0, 128, 64, 4096, 8192, 256, 512, 1024, 2048, 16384];
+const i16 = (v) => Math.round(Math.max(-1, Math.min(1, v)) * 32767);
+function readPads() {
+  const pad = { connected: true, buttons: 0, leftX: 0, leftY: 0, rightX: 0, rightY: 0, leftTrigger: 0, rightTrigger: 0 };
+  let gps = []; try { gps = navigator.getGamepads ? navigator.getGamepads() : []; } catch {}
+  let lx = 0, ly = 0, rx = 0, ry = 0, lt = 0, rt = 0;
+  for (const gp of gps) {
+    if (!gp || !gp.connected) continue;
+    gp.buttons.forEach((b, i) => { if (b.pressed && BTN_MAP[i]) pad.buttons |= BTN_MAP[i]; });
+    // the strongest stick among all pads wins
+    const pick = (cur, v) => (Math.abs(v) > Math.abs(cur) ? v : cur);
+    lx = pick(lx, gp.axes[0] || 0); ly = pick(ly, gp.axes[1] || 0); rx = pick(rx, gp.axes[2] || 0); ry = pick(ry, gp.axes[3] || 0);
+    lt = Math.max(lt, gp.buttons[6] ? gp.buttons[6].value : 0); rt = Math.max(rt, gp.buttons[7] ? gp.buttons[7].value : 0);
+  }
+  // mouse: left button is the right trigger, right button the left trigger, wheel taps R and L
+  if (mouseBtn & 1) rt = 1;
+  if (mouseBtn & 2) lt = 1;
+  if (wheelR > 0) { pad.buttons |= 32; wheelR--; }
+  if (wheelL > 0) { pad.buttons |= 16; wheelL--; }
+  mouseStick();
+  if (Math.abs(lookX) > Math.abs(rx)) rx = lookX;
+  if (Math.abs(lookY) > Math.abs(ry)) ry = lookY;
+  pad.leftX = i16(lx); pad.leftY = i16(ly); pad.rightX = i16(rx); pad.rightY = i16(ry);
+  pad.leftTrigger = i16(lt); pad.rightTrigger = i16(rt);
+  return [pad];
+}
+
+/* ---------- saves ---------- */
+let lastSave = null;
+function sameBytes(a, b) { if (!a || !b || a.length !== b.length) return false; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false; return true; }
+let cartKey = 'save';
+async function persist() {
+  if (!host) return;
+  let b; try { b = host.getSaveData(); } catch { return; }
+  if (!b || !b.length || sameBytes(b, lastSave)) return;
+  lastSave = b; await kvSet(cartKey, b);
+}
+setInterval(persist, 8000);
+document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
+window.addEventListener('pagehide', persist);
+
+/* ---------- cart loading ---------- */
+function b64ToBytes(s) { const bin = atob(s.trim()); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+let running = false, rafId = 0, gl = null;
+async function startCart(cart, key) {
+  cartKey = key;
+  setStatus('starting cart');
+  let saveData;
+  try { const s = await kvGet(key); if (s) saveData = new Uint8Array(s); } catch {}
+  const h = new RW.CartHostWeb();
+  const [pw, ph] = backingSize();
+  canvas.width = pw; canvas.height = ph;
+  try {
+    await h.load(cart, { glBackend: gl, saveData, audioSampleRate: actx ? actx.sampleRate : 48000, preferredWidth: pw, preferredHeight: ph });
+  } catch (e) {
+    console.error(e); showError('The cart did not load: ' + (e && e.message || e)); setStatus('failed'); return false;
+  }
+  host = h; lastSave = saveData || null;
+  try { host.autoWireLifecycle(window); } catch {}
+  return true;
+}
+function loop() {
+  rafId = requestAnimationFrame(loop);
+  if (!host) return;
+  let f;
+  try { f = host.runFrame(readPads()); } catch (e) { console.error(e); setStatus('cart error: ' + (e.message || e)); cancelAnimationFrame(rafId); return; }
+  if (f && f.audio) pushAudio(f.audio);
+}
+function enterGame() {
+  $('gate').classList.add('gone'); document.body.classList.remove('loading');
+  canvas.focus(); unlockAudio();
+  $('hint').classList.toggle('show', !locked && lockSupported);
+  document.body.classList.add('hot'); setTimeout(() => document.body.classList.remove('hot'), 3000);
+  takeLock();   // the Play click is a user gesture, so capture can start right away
+  if (!running) { running = true; rafId = requestAnimationFrame(loop); }
+}
+
+async function loadOther(file) {
+  const b = new Uint8Array(await file.arrayBuffer());
+  if (!(b[0] === 0x50 && b[1] === 0x4b)) { showError('That file is not a .wasc cart.'); return; }
+  // a cart swap starts clean: the page reloads the new bytes into a fresh host
+  cancelAnimationFrame(rafId); running = false;
+  await persist();
+  if (host) { try { host.destroy(); } catch {} host = null; }
+  $('gate').classList.remove('gone'); document.body.classList.add('loading');
+  $('err').classList.remove('show'); $('go').disabled = true; $('go').textContent = 'LOADING';
+  const ok = await startCart(b, 'save:' + file.name + ':' + b.length);
+  if (ok) { setStatus(file.name + ' ready'); $('go').disabled = false; $('go').textContent = 'PLAY'; }
+}
+
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; $('over').classList.add('show'); });
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; $('over').classList.remove('show'); } });
+window.addEventListener('drop', (e) => { e.preventDefault(); dragDepth = 0; $('over').classList.remove('show'); const f = e.dataTransfer.files[0]; if (f) loadOther(f); });
+$('pick').onclick = () => $('file').click();
+$('file').onchange = (e) => { const f = e.target.files[0]; if (f) loadOther(f); };
+
+async function boot() {
+  gl = makeGL();
+  if (!gl) {
+    setStatus('WebGL2 unavailable');
+    $('go').textContent = 'CANNOT RUN';
+    showError('This browser or device does not offer WebGL2, which DROPSHOT needs. Try a current Chrome, Firefox or Safari, check that hardware acceleration is turned on, and update your graphics drivers.');
+    return;
+  }
+  await initAudio();
+  let cart;
+  try { cart = b64ToBytes($('cart-data').textContent); } catch (e) { showError('The embedded cart could not be read.'); return; }
+  const ok = await startCart(cart, 'save');
+  if (!ok) return;
+  setStatus('ready');
+  $('go').disabled = false; $('go').textContent = 'PLAY';
+  $('go').onclick = enterGame;
+  window.addEventListener('keydown', (e) => { if (!gateGone() && (e.code === 'Enter' || e.code === 'Space') && !$('go').disabled && document.activeElement !== $('pick')) { e.preventDefault(); enterGame(); } }, { once: false });
+  // debugging and tests can skip the gate with ?autostart
+  if (/[?&]autostart/.test(location.search)) enterGame();
+}
+boot();
+})();
+</script>
+</body>
+</html>
