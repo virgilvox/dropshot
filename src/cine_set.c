@@ -3,6 +3,7 @@
  * Everything lives far from the playable levels and is only shown while a
  * cutscene runs (cutscene.c toggles the roots). */
 #include "cine_int.h"
+#include "batch.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -1149,6 +1150,17 @@ static void basement_build(void) {
   R->visible = false;
 }
 
+/* Each set is hundreds of small static meshes; drawn one by one they cost a
+ * thousand draws a frame (two frames a second in a browser). Merge what never
+ * moves; everything a scene animates is held by name in the set structs and
+ * left alone. */
+#define SKIPS(...) (t3_object *[]){__VA_ARGS__}, (int)(sizeof (t3_object *[]){__VA_ARGS__} / sizeof(t3_object *))
+static void batch_set(t3_object *root, t3_object **skip, int n) {
+  int k = 0;
+  for (int i = 0; i < n; i++) if (skip[i]) skip[k++] = skip[i];   /* sets leave some slots empty */
+  batch_static(root, skip, k);
+}
+
 void sets_init(t3_scene *scene) {
   scn = scene;
   halcyon_build();
@@ -1158,4 +1170,17 @@ void sets_init(t3_scene *scene) {
   cold_build();
   annex_build();
   basement_build();
+  batch_set(HA.root, SKIPS(HA.dome, HA.planet, HA.gondola, HA.panel, HA.hole, HA.halo, HA.strip[0], HA.strip[1], HA.strip[2], HA.strip[3],
+                           HA.strip[4], HA.strip[5], HA.strip[6], HA.strip[7], HA.ship[0], HA.ship[1], HA.ship[2], HA.window_back, HA.form, HA.squeegee));
+  batch_set(SU.root, SKIPS(SU.dome, SU.lamps, SU.freehold, SU.nests));
+  batch_set(FR.root, SKIPS(FR.dome, FR.arena, FR.crane[0], FR.crane[1], FR.crane[2], FR.crane[3], FR.crane[4], FR.crane[5], FR.crane[6], FR.crane[7],
+                           FR.jib[0], FR.jib[1], FR.jib[2], FR.jib[3], FR.jib[4], FR.jib[5], FR.jib[6], FR.jib[7],
+                           FR.lamp[0], FR.lamp[1], FR.lamp[2], FR.lamp[3], FR.lamp[4], FR.lamp[5], FR.lamp[6], FR.lamp[7],
+                           FR.furn[0], FR.furn[1], FR.furn[2], FR.furn[3], FR.furn[4], FR.furn[5], FR.furn[6], FR.furn[7], FR.furn[8], FR.furn[9],
+                           FR.beam, FR.lease));
+  batch_set(BAY.root, SKIPS(BAY.plate[0], BAY.plate[1], BAY.lamp));
+  batch_set(CO.root, SKIPS(CO.chute, CO.lamp, CO.label[0], CO.label[1], CO.banner, CO.heater));
+  batch_set(AN.root, SKIPS(AN.dome, AN.planet, AN.gondola, AN.bucket, AN.pane, AN.turret, AN.ship[0], AN.ship[1], AN.ship[2]));
+  batch_set(BS.root, SKIPS(BS.stamp, BS.form[0], BS.form[1], BS.form[2], BS.form[3], BS.form[4], BS.form[5], BS.cap[0], BS.cap[1], BS.cap[2], BS.cap[3],
+                           BS.cap[4], BS.cap[5], BS.cap[6], BS.cap[7], BS.cap[8], BS.cap[9], BS.relay, BS.relay_ring));
 }

@@ -671,6 +671,9 @@ static void update_pause(const intent_t *I) {
   if (I->ok && H.menu_sel == 3) { to_title(); return; }
 }
 
+#ifdef DS_TRACE
+static void trace_count(t3_object *o, void *ctx) { int *c = ctx; c[0]++; if (o->type == T3_MESH || o->type == T3_SKINNED_MESH || o->type == T3_INSTANCED_MESH) c[1]++; }
+#endif
 void game_frame(float dt) {
   const intent_t *I = input_get();
   st_t += dt;
@@ -680,7 +683,10 @@ void game_frame(float dt) {
     if (line) voice_prepare(cutscene_voice_for(who), line);
   }
 #ifdef DS_TRACE
-  { static int fr; if (++fr % 60 == 0) ds_log("[trace] f%d st%d t%.1f pos %.1f %.1f %.1f vy %.1f hp %.0f alive %d wing %.2f", fr, st, st_t, pos.x, pos.y, pos.z, vel.y, hp, enemy_alive(), wing_open); }
+  { static int fr; if (++fr % 60 == 0) ds_log("[trace] f%d st%d t%.1f pos %.1f %.1f %.1f vy %.1f hp %.0f alive %d wing %.2f", fr, st, st_t, pos.x, pos.y, pos.z, vel.y, hp, enemy_alive(), wing_open);
+    const t3_render_info *ri = t3_renderer_info(DS_R);
+    int cnt[2] = {0, 0}; t3_object_traverse(&scene->base, trace_count, cnt);
+    ds_log("[trace] draw calls %u tris %u objects %d meshes %d", ri->calls, ri->triangles, cnt[0], cnt[1]); }
 #endif
   if (st == ST_PAUSE) { update_pause(I); }
   else {
